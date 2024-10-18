@@ -69,7 +69,7 @@ class GameSession:
         elif resp.status_code == 400:
             log(kng + "You have already checked in today!")
         else:
-            log(self.get_error_message(resp))
+            log(bru + f"Failed to get check-in data!")
 
         await asyncio.sleep(2)
 
