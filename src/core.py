@@ -78,7 +78,7 @@ class GameSession:
             g_tickets = json.load(cf).get("game_ticket_to_play", 1)
 
         for ticket in range(g_tickets):
-            game_choice = random.choice(['clayball', 'stack', 'tiles'])
+            game_choice = random.choice(['stack', 'tiles'])
             log(hju + f"Play {pth}{game_choice} {hju}with ticket {pth}{ticket + 1}/{g_tickets}")
 
             if game_choice == 'stack':
@@ -114,20 +114,27 @@ class GameSession:
         updates = random.randint(7, 10)
 
         for _ in range(updates):
-            await self.update_score(f"{self.b_url}/api/game/save-tile", {"maxTile": max_tile})
+            payload = {
+                "maxTile": max_tile,
+                "session_id": self.session_id 
+            }
+            await self.update_score(f"{self.b_url}/api/game/save-tile", payload)
             max_tile *= 2
 
         return await self.end_game(f"{self.b_url}/api/game/over", {"multiplier": 1})
 
     async def start_game(self, url):
         resp = self.scraper.post(url, headers=self.hdrs, json={})
-        if resp.status_code != 200:
+        if resp.status_code == 200:
+            data = resp.json()  
+            self.session_id = data.get('session_id', None) 
+            log(bru + "Game started successfully")
+            return True
+        elif resp.status_code != 200:
             if "attempts are over" in resp.text:
                 error_msg = kng + "Game: ticket attempts are over"
                 log(f"{error_msg}")
-            return False
-        log(bru + "Game started successfully")
-        return True
+        return False
 
     async def update_score(self, url, payload):
         resp = self.scraper.post(url, headers=self.hdrs, json=payload)
@@ -169,7 +176,6 @@ class GameSession:
 
         log(bru + "Game started successfully")
         return True
-
 
     async def ends_game(self, url, payload):
         resp = self.scraper.post(url, headers=self.hdrs, json=payload)
@@ -261,7 +267,6 @@ class GameSession:
 
         if not claimed_any:
             log(kng + "No achievements reward to claim")
-
 
 async def ld_accs(fp):
     with open(fp, 'r') as file:
