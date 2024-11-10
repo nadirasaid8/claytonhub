@@ -13,7 +13,7 @@ init(autoreset=True)
 cfg = read_config()
 class GameSession:
     def __init__(self, acc_data, tgt_score, prxy=None):
-        self.b_url = "https://tonclayton.fun"
+        self.b_url = "https://tonclayton.fun/api/cc82f330-6a6d-4deb-a15b-6a335a67ffa7"
         self.s_id = None
         self.a_data = acc_data
         self.hdrs = get_headers(self.a_data)
@@ -41,7 +41,7 @@ class GameSession:
         return 'No proxy used'
 
     async def start(self):
-        lg_url = f"{self.b_url}/api/user/authorization"
+        lg_url = f"{self.b_url}/user/authorization"
         while True:
             resp = self.scraper.post(lg_url, headers=self.hdrs, json={})
             if resp.status_code == 200:
@@ -58,7 +58,7 @@ class GameSession:
                 await asyncio.sleep(2) 
   
     async def check_in(self):
-        lg_url = f"{self.b_url}/api/user/daily-claim"
+        lg_url = f"{self.b_url}/user/daily-claim"
         resp = self.scraper.post(lg_url, headers=self.hdrs, json={})
         if resp.status_code == 200:
             res = resp.json()
@@ -96,18 +96,18 @@ class GameSession:
             await countdown_timer(5)
 
     async def play_stack_game(self):
-        if not await self.start_game(f"{self.b_url}/api/stack/st-game"):
+        if not await self.start_game(f"{self.b_url}/stack/st-game"):
             return False
 
         self.c_score = 0
         while self.c_score < self.t_score:
             self.c_score += self.inc
-            await self.update_score(f"{self.b_url}/api/stack/update-game", {"score": self.c_score})
+            await self.update_score(f"{self.b_url}/stack/update-game", {"score": self.c_score})
 
-        return await self.end_game(f"{self.b_url}/api/stack/en-game", {"score": self.c_score, "multiplier": 1})
+        return await self.end_game(f"{self.b_url}/stack/en-game", {"score": self.c_score, "multiplier": 1})
 
     async def play_tiles_game(self):
-        if not await self.start_game(f"{self.b_url}/api/game/start"):
+        if not await self.start_game(f"{self.b_url}/game/start"):
             return False
 
         max_tile = 2
@@ -118,10 +118,10 @@ class GameSession:
                 "maxTile": max_tile,
                 "session_id": self.session_id 
             }
-            await self.update_score(f"{self.b_url}/api/game/save-tile", payload)
+            await self.update_score(f"{self.b_url}/game/save-tile", payload)
             max_tile *= 2
 
-        return await self.end_game(f"{self.b_url}/api/game/over", {"multiplier": 1})
+        return await self.end_game(f"{self.b_url}/game/over", {"multiplier": 1})
 
     async def start_game(self, url):
         resp = self.scraper.post(url, headers=self.hdrs, json={})
@@ -157,13 +157,13 @@ class GameSession:
         return True
 
     async def play_clay_ball(self):
-        if not await self.starts_game("https://tonclayton.fun/api/clay/start-game"):
+        if not await self.starts_game("https://tonclayton.fun/clay/start-game"):
             return False
         await countdown_timer(10)
 
         cl_score = random.randint(40,45)
         payload = {"score": cl_score}
-        return await self.ends_game("https://tonclayton.fun/api/clay/end-game", payload)
+        return await self.ends_game("https://tonclayton.fun/clay/end-game", payload)
 
     async def starts_game(self, url):
         resp = self.scraper.post(url, headers=self.hdrs, json={})
@@ -190,13 +190,13 @@ class GameSession:
         
     async def cpl_and_clm_tsk(self, tsk_type='daily'):
         if tsk_type == 'daily':
-            t_url = f"{self.b_url}/api/tasks/daily-tasks"
+            t_url = f"{self.b_url}/tasks/daily-tasks"
         elif tsk_type == 'default':
-            t_url = f"{self.b_url}/api/tasks/default-tasks"
+            t_url = f"{self.b_url}/tasks/default-tasks"
         elif tsk_type == 'super':
-            t_url = f"{self.b_url}/api/tasks/super-tasks"
+            t_url = f"{self.b_url}/tasks/super-tasks"
         elif tsk_type == 'partner':
-            t_url = f"{self.b_url}/api/tasks/partner-tasks"
+            t_url = f"{self.b_url}/tasks/partner-tasks"
         else:
             log(mrh + f"Unknown task type: {tsk_type}")
             return
@@ -222,13 +222,13 @@ class GameSession:
         for t in tasks:
             t_id = t['task_id']
             if not t.get('is_completed', False):
-                cmp_url = f"{self.b_url}/api/tasks/complete"
+                cmp_url = f"{self.b_url}/tasks/complete"
                 cmp_resp = self.scraper.post(cmp_url, headers=self.hdrs, json={"task_id": t_id})
                 if cmp_resp.status_code == 200:
                     log(hju + f"Completed {pth}{tsk_type}{hju} task: {pth}{t['task']['title']}")
                     wait_time = max(random.randint(4, 6), 1)
                     await countdown_timer(wait_time)
-                    clm_url = f"{self.b_url}/api/tasks/claim"
+                    clm_url = f"{self.b_url}/tasks/claim"
                     clm_resp = self.scraper.post(clm_url, headers=self.hdrs, json={"task_id": t_id})
                     if clm_resp.status_code == 200:
                         clm_data = clm_resp.json()
@@ -243,7 +243,7 @@ class GameSession:
                 log(hju + f"Task {pth}{t['task']['title']} {kng}already completed.")
 
     async def claim_achievements(self):
-        ach_url = f"{self.b_url}/api/user/achievements/get"
+        ach_url = f"{self.b_url}/user/achievements/get"
         resp = self.scraper.post(ach_url, headers=self.hdrs, json={})
         if resp.status_code != 200:
             return
@@ -256,7 +256,7 @@ class GameSession:
                 if achievement['is_completed'] and not achievement['is_rewarded']:
                     lvl = achievement['level']
                     pl = {"type": category, "level": lvl}
-                    cl_url = f"{self.b_url}/api/user/achievements/claim"
+                    cl_url = f"{self.b_url}/user/achievements/claim"
                     claim_resp = self.scraper.post(cl_url, headers=self.hdrs, json=pl)
                     if claim_resp.status_code == 200:
                         rwd_data = claim_resp.json()
