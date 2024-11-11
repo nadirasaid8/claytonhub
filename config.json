@@ -1,5 +1,6 @@
 {
     "use_proxy": false,
+    "api_change": "cc82f330-6a6d-4deb-a16b-6a335a67ffa7",
     "complete_task": false,
     "play_game": false,
     "game_ticket_to_play": 2,

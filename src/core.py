@@ -11,9 +11,12 @@ from requests.exceptions import ConnectionError, Timeout, ProxyError, RequestExc
 
 init(autoreset=True)
 cfg = read_config()
+
+api_change = cfg.get('api_change', 'cc82f330-6a6d-4deb-a16b-6a335a67ffa7')
+
 class GameSession:
     def __init__(self, acc_data, tgt_score, prxy=None):
-        self.b_url = "https://tonclayton.fun/api/cc82f330-6a6d-4deb-a15b-6a335a67ffa7"
+        self.b_url = f"https://tonclayton.fun/api/{api_change}"
         self.s_id = None
         self.a_data = acc_data
         self.hdrs = get_headers(self.a_data)

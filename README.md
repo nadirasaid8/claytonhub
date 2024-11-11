@@ -47,6 +47,7 @@ Create a config.json file in the root directory with the following structure:
    ```json
 {
     "use_proxy": false,
+    "api_change": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
     "complete_task": false,
     "play_game": false,
     "game_ticket_to_play": 2,
