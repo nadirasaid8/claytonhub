@@ -55,11 +55,24 @@ class GameSession:
                 log(bru + f"Username: {pth}{usr.get('username', 'N/A')}")
                 log(hju + f"Points: {pth}{usr.get('tokens', 'N/A'):,.0f} {hju}| XP: {pth}{usr.get('current_xp', 'N/A')}")
                 log(hju + f"Level: {pth}{usr.get('level', 'N/A')} {hju}| Tickets: {pth}{usr.get('daily_attempts', 0)}")
+                await self.save_user()
                 await self.check_in()
                 break  
             else:
                 await asyncio.sleep(2) 
-  
+
+    async def save_user(self):
+        lg_url = f"{self.b_url}/user/save-user"
+        resp = self.scraper.post(lg_url, headers=self.hdrs, json={})
+        if resp.status_code == 200:
+            res = resp.json()
+            message = res.get('message', 'None')
+            log(hju + f"Saved user: {pth}{message}{hju}")
+        elif resp.status_code == 400:
+            log(kng + "You have already saved your token!")
+        else:
+            log(bru + f"Failed to get saved user data!")
+
     async def check_in(self):
         lg_url = f"{self.b_url}/user/daily-claim"
         resp = self.scraper.post(lg_url, headers=self.hdrs, json={})
@@ -144,7 +157,7 @@ class GameSession:
 
         if resp.status_code == 200:
             score_type = 'maxTile' if 'maxTile' in payload else 'score'
-            log(hju + f"Getting new score: {pth}[ {payload[score_type]} ]", end="\r", flush=True)
+            log(hju + f"Getting new score: {pth}[ {payload[score_type]} ]")
 
         await asyncio.sleep(random.randint(2, 5))
 
