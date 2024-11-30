@@ -2,6 +2,7 @@ import cloudscraper
 import asyncio
 import random
 import aiohttp
+import re
 from colorama import *
 import json
 from datetime import datetime
@@ -12,11 +13,10 @@ from requests.exceptions import ConnectionError, Timeout, ProxyError, RequestExc
 init(autoreset=True)
 cfg = read_config()
 
-api_change = cfg.get('api_change', 'cc82f330-6a6d-4deb-a16b-6a335a67ffa7')
-
 class GameSession:
+    api_base_id = None
+
     def __init__(self, acc_data, tgt_score, prxy=None):
-        self.b_url = f"https://tonclayton.fun/api/{api_change}"
         self.s_id = None
         self.a_data = acc_data
         self.hdrs = get_headers(self.a_data)
@@ -25,12 +25,80 @@ class GameSession:
         self.inc = 10
         self.pxy = prxy
 
-        self.scraper = cloudscraper.create_scraper()  
+        self.b_url = None
+        self.scraper = cloudscraper.create_scraper()
+
         if self.pxy:
             self.scraper.proxies = {
                 'http': f'http://{self.pxy}',
                 'https': f'http://{self.pxy}',
             }
+
+    async def fetch_api_base_id(self):
+        if GameSession.api_base_id:
+            self.api_base_id = GameSession.api_base_id
+            self.b_url = f"https://tonclayton.fun/api/{self.api_base_id}"
+            return True
+        
+        url_id = "https://tonclayton.fun/assets/index-BXOdEvKW.js"
+        try:
+            response = self.scraper.get(url_id, headers=self.hdrs)
+            if response.status_code == 200:
+                js_content = response.text
+                match = re.search(r'ge\s*=\s*"([^"]+)"', js_content)
+
+                if match and match.group(1):
+                    self.api_base_id = match.group(1)
+                    self.b_url = f"https://tonclayton.fun/api/{self.api_base_id}"
+                    GameSession.api_base_id = self.api_base_id
+                    return True
+                else:
+                    raise ValueError(mrh + "API Base ID not found in JS file")
+
+            else:
+                raise ValueError(mrh + f"Failed to fetch the JS file, status code: {response.status_code}")
+
+        except Exception as error:
+            print(mrh + f"Error retrieving API Base ID: {str(error)}")
+            return False
+
+    async def start(self):
+        success = await self.fetch_api_base_id()
+        if not success:
+            raise ValueError(mrh + "Failed to get the API Base ID. Exit...")
+
+        lg_url = f"{self.b_url}/user/authorization"
+        attempt = 0
+        while True:
+            try:
+                response = await asyncio.to_thread(self.scraper.post, lg_url, headers=self.hdrs, json={})
+
+                if response.status_code == 200:
+                    usr_data = response.json()
+                    usr = usr_data.get('user', {})
+                    log(hju + f"Username: {pth}{usr.get('username', 'N/A')}")
+                    log(hju + f"Points: {pth}{usr.get('tokens', 'N/A'):,.0f} {hju}| XP: {pth}{usr.get('current_xp', 'N/A')}")
+                    log(hju + f"Level: {pth}{usr.get('level', 'N/A')} {hju}| Tickets: {pth}{usr.get('daily_attempts', 0)}")
+                    await self.save_user()
+                    await self.check_in()
+                    break
+                elif response.status_code == 404:
+                    log(mrh + f"Error 404: The URL '{lg_url}' was not found.")
+                    break
+                else:
+                    log(mrh + f"Failed to log in, status code: {response.status_code}")
+                    attempt += 1
+                    if attempt >= 5:
+                        log(mrh + f"Too many failed attempts. Exiting...")
+                        break
+                    await asyncio.sleep(5)
+            except (ConnectionError, Timeout, ProxyError, RequestException, HTTPError) as e:
+                print(mrh + f"Error during request: {str(e)}")
+                attempt += 1
+                if attempt >= 5:
+                    print(mrh + "Too many request errors. Exiting...")
+                    break
+                await asyncio.sleep(5)
 
     @staticmethod
     def fmt_ts(ts):
@@ -42,25 +110,7 @@ class GameSession:
         if proxy:
             return proxy.split('@')[-1]
         return 'No proxy used'
-
-    async def start(self):
-        lg_url = f"{self.b_url}/user/authorization"
-        while True:
-            resp = self.scraper.post(lg_url, headers=self.hdrs, json={})
-            if resp.status_code == 200:
-                usr_data = resp.json()
-                usr = usr_data.get('user', {})
-                log(hju + f"Proxy: {pth}{self.proxy_format(self.pxy)}")
-                log(htm + "~" * 38)
-                log(bru + f"Username: {pth}{usr.get('username', 'N/A')}")
-                log(hju + f"Points: {pth}{usr.get('tokens', 'N/A'):,.0f} {hju}| XP: {pth}{usr.get('current_xp', 'N/A')}")
-                log(hju + f"Level: {pth}{usr.get('level', 'N/A')} {hju}| Tickets: {pth}{usr.get('daily_attempts', 0)}")
-                await self.save_user()
-                await self.check_in()
-                break  
-            else:
-                await asyncio.sleep(2) 
-
+        
     async def save_user(self):
         lg_url = f"{self.b_url}/user/save-user"
         resp = self.scraper.post(lg_url, headers=self.hdrs, json={})
@@ -157,7 +207,7 @@ class GameSession:
 
         if resp.status_code == 200:
             score_type = 'maxTile' if 'maxTile' in payload else 'score'
-            log(hju + f"Getting new score: {pth}[ {payload[score_type]} ]")
+            log(hju + f"Success playing with score: {pth}{payload[score_type]}")
 
         await asyncio.sleep(random.randint(2, 5))
 
@@ -166,7 +216,7 @@ class GameSession:
 
         if resp.status_code == 200:
             res = resp.json()
-            log(hju + "Game ended successfully   ")
+            log(hju + "Game ended successfully")
             log(hju + f"XP Earned: {pth}{res['xp_earned']} | Points: {pth}{res['earn']}")
 
         await countdown_timer(5)
@@ -308,8 +358,13 @@ async def main():
                 for idx, acc in enumerate(accs):
                     log(hju + f"Processing account {pth}{idx + 1} {hju}of {pth}{len(accs)}")
                     prxy = prx[idx % len(prx)] if use_prxy and prx else None
+                    
+                    if prxy:
+                        user_pass, host_port = prxy.split('@')
+                        host, port = host_port.split(':')
+                        log(hju + f"Using Proxy: {pth}{host}:{port}")
+                    log(htm + "~" * 38)
                     game = GameSession(acc, tgt_score, prxy)
-
                     await game.start()
 
                     if cpl_tsk:
@@ -320,8 +375,7 @@ async def main():
 
                     if ply_game:
                         await game.run_g()
-
-                    await countdown_timer(3)    
+    
                     await game.claim_achievements()
 
                     log_line()
